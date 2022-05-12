@@ -1,17 +1,14 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-
-#include <iostream>
-#include <stdexcept>
-#include "doctest.h"
+// #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <assert.h>
 #define PORT 3490
 
-TEST_CASE("checking stack functions") {
+int main() {
     int sock = 0, valread;
 	struct sockaddr_in serv_addr;
 	char buffer[1024] = { 0 };
@@ -39,13 +36,42 @@ TEST_CASE("checking stack functions") {
     char text[1025];
 
     send(sock, "PUSH hello world!", sizeof("PUSH hello world!"), 0);
-    send(sock, "TOP", sizeof("TOP"), 0);
+    send(sock, "TOP", sizeof("TOP"), 0); //top should be "hello world"
     recv(sock, text, 1025, 0);
-    CHECK_EQ(strcmp(text, "hello world!"), 0);
-
+    assert(strcmp(text, "hello world!") == 0);
+    send(sock, "PUSH second line in stack", sizeof("PUSH second line in stack"), 0); 
+    send(sock, "TOP", sizeof("TOP"), 0); //top should be "second line in stack"
+    recv(sock, text, 1025, 0);
+    assert(strcmp(text, "second line in stack") == 0);
+    send(sock, "POP", sizeof("POP"), 0); 
+    send(sock, "TOP", sizeof("TOP"), 0); //top should be "hello world"
+    recv(sock, text, 1025, 0);
+    assert(strcmp(text, "hello world!") == 0);
+    send(sock, "POP", sizeof("POP"), 0);   //nothing should be in stack
+    send (sock, "TOP", sizeof("TOP"), 0); //should return error
+    recv(sock, text, 1025, 0);
+    assert(strcmp(text, "ERROR: cant top when stack is empty!") == 0);
+    send(sock, "POP", sizeof("POP"), 0); //should return error
+    recv(sock, text, 1025, 0);
+    assert(strcmp(text, "ERROR: cant pop empty stack!") == 0);  
+    send(sock, "PUSH she sells seashells by the sea shore", sizeof("PUSH she sells seashells by the sea shore"), 0);
+    send(sock, "PUSH three smart fellows, they felt smart", sizeof("PUSH three smart fellows, they felt smart"), 0);
+    send(sock, "PUSH the itsy bitsy spider", sizeof("PUSH the itsy bitsy spider"), 0);    
+    send(sock, "TOP", sizeof("TOP"), 0); //top should  be "the itspy bitsy spider"
+    recv(sock, text, 1025, 0);
+    assert(strcmp(text, "the itsy bitsy spider") == 0);
+    send(sock, "POP", sizeof("POP"), 0); 
+    send(sock, "TOP", sizeof("TOP"), 0); //top should be "three smart fellows, they felt smart"
+    recv(sock, text, 1025, 0);
+    assert(strcmp(text, "three smart fellows, they felt smart") == 0);    
+    send(sock, "POP", sizeof("POP"), 0); 
+    send(sock, "TOP", sizeof("TOP"), 0); //top should be "she sells seashells by the sea shore"
+    recv(sock, text, 1025, 0);
+    assert(strcmp(text, "she sells seashells by the sea shore") == 0);
     send(sock, "EXIT", sizeof("EXIT"), 0);
+    close(sock);
 
-
+    return 0;
 
 
     // char input[1030];
@@ -74,7 +100,5 @@ TEST_CASE("checking stack functions") {
     //         }
     //     }
     // }
-
-	close(sock);
 
 }
