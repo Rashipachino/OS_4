@@ -1,18 +1,34 @@
-// #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-
 #include <arpa/inet.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <signal.h>
 #include <assert.h>
 #define PORT 3490
 
+int sock1 = 0, sock2 = 0;
+
+void signal_handler(int sig) {
+	if(sig == SIGINT) {
+		printf("terminating test\n");
+        send(sock1, "EXIT", sizeof("EXIT"), 0);
+		exit(0);
+	}
+}
+
 int main() {
-    int sock = 0, valread;
+
+    signal(SIGINT, &signal_handler);
+
+    int valread;
 	struct sockaddr_in serv_addr;
 	char buffer[1024] = { 0 };
-	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+	if ((sock1 = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+		printf("\n Socket creation error \n");
+	}
+    if ((sock2 = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		printf("\n Socket creation error \n");
 	}
 
@@ -27,78 +43,88 @@ int main() {
 			"\nInvalid address/ Address not supported \n");
 	}
 
-	if (connect(sock, (struct sockaddr*)&serv_addr,
+	if (connect(sock1, (struct sockaddr*)&serv_addr,
 				sizeof(serv_addr))
 		< 0) {
 		printf("\nConnection Failed \n");
 	}
 
-    char text[1025];
+    if (connect(sock2, (struct sockaddr*)&serv_addr,
+				sizeof(serv_addr))
+		< 0) {
+		printf("\nConnection Failed \n");
+	}
 
-    send(sock, "PUSH hello world!", sizeof("PUSH hello world!"), 0);
-    send(sock, "TOP", sizeof("TOP"), 0); //top should be "hello world"
-    recv(sock, text, 1025, 0);
-    assert(strcmp(text, "hello world!") == 0);
-    send(sock, "PUSH second line in stack", sizeof("PUSH second line in stack"), 0); 
-    send(sock, "TOP", sizeof("TOP"), 0); //top should be "second line in stack"
-    recv(sock, text, 1025, 0);
-    assert(strcmp(text, "second line in stack") == 0);
-    send(sock, "POP", sizeof("POP"), 0); 
-    send(sock, "TOP", sizeof("TOP"), 0); //top should be "hello world"
-    recv(sock, text, 1025, 0);
-    assert(strcmp(text, "hello world!") == 0);
-    send(sock, "POP", sizeof("POP"), 0);   //nothing should be in stack
-    send (sock, "TOP", sizeof("TOP"), 0); //should return error
-    recv(sock, text, 1025, 0);
-    assert(strcmp(text, "ERROR: cant top when stack is empty!") == 0);
-    send(sock, "POP", sizeof("POP"), 0); //should return error
-    recv(sock, text, 1025, 0);
-    assert(strcmp(text, "ERROR: cant pop empty stack!") == 0);  
-    send(sock, "PUSH she sells seashells by the sea shore", sizeof("PUSH she sells seashells by the sea shore"), 0);
-    send(sock, "PUSH three smart fellows, they felt smart", sizeof("PUSH three smart fellows, they felt smart"), 0);
-    send(sock, "PUSH the itsy bitsy spider", sizeof("PUSH the itsy bitsy spider"), 0);    
-    send(sock, "TOP", sizeof("TOP"), 0); //top should  be "the itspy bitsy spider"
-    recv(sock, text, 1025, 0);
-    assert(strcmp(text, "the itsy bitsy spider") == 0);
-    send(sock, "POP", sizeof("POP"), 0); 
-    send(sock, "TOP", sizeof("TOP"), 0); //top should be "three smart fellows, they felt smart"
-    recv(sock, text, 1025, 0);
-    assert(strcmp(text, "three smart fellows, they felt smart") == 0);    
-    send(sock, "POP", sizeof("POP"), 0); 
-    send(sock, "TOP", sizeof("TOP"), 0); //top should be "she sells seashells by the sea shore"
-    recv(sock, text, 1025, 0);
-    assert(strcmp(text, "she sells seashells by the sea shore") == 0);
-    send(sock, "EXIT", sizeof("EXIT"), 0);
-    close(sock);
+    char text1[1025];
+    char text2[1025];
+
+    printf("STARTING TESTS\n");
+
+    send(sock1, "PUSH hello world!", sizeof("PUSH hello world!"), 0);
+    sleep(0.1);
+    send(sock2, "PUSH hi bob", sizeof("PUSH hi bob"), 0);
+    sleep(0.1);
+    send(sock1, "TOP", sizeof("TOP"), 0); //top should be "hi bob"
+    sleep(0.1);
+    recv(sock1, text1, 1025, 0);
+    assert(strcmp(text1, "hi bob") == 0);
+    printf("TEST 1 DONE\n");
+    send(sock1, "PUSH second line in stack", sizeof("PUSH second line in stack"), 0); 
+    sleep(0.1);
+    send(sock2, "TOP", sizeof("TOP"), 0); //top should be "second line in stack"
+    sleep(0.1);
+    recv(sock2, text2, 1025, 0);
+    assert(strcmp(text2, "second line in stack") == 0);
+    printf("TEST 2 DONE\n");
+    send(sock1, "POP", sizeof("POP"), 0); 
+    sleep(0.1);
+    send(sock2, "POP", sizeof("POP"), 0); 
+    sleep(0.1);
+    send(sock1, "TOP", sizeof("TOP"), 0); //top should be "hello world"
+    sleep(0.1);
+    recv(sock1, text1, 1025, 0);
+    assert(strcmp(text1, "hello world!") == 0);
+    printf("TEST 3 DONE\n");
+    send(sock2, "POP", sizeof("POP"), 0);   //nothing should be in stack
+    sleep(0.1);
+    send (sock1, "TOP", sizeof("TOP"), 0); //should return error
+    sleep(0.1);
+    recv(sock1, text1, 1025, 0);
+    assert(strcmp(text1, "<ERROR: stack is empty>") == 0);
+    printf("TEST 4 DONE\n");
+    send(sock1, "POP", sizeof("POP"), 0); // popping empty stack
+    sleep(0.1);
+    send(sock1, "PUSH she sells seashells by the sea shore", sizeof("PUSH she sells seashells by the sea shore"), 0);
+    sleep(0.1);
+    send(sock1, "PUSH three smart fellows, they felt smart", sizeof("PUSH three smart fellows, they felt smart"), 0);
+    sleep(0.1);
+    send(sock1, "PUSH the itsy bitsy spider", sizeof("PUSH the itsy bitsy spider"), 0);    
+    sleep(0.1);
+    send(sock2, "TOP", sizeof("TOP"), 0); //top should  be "the itspy bitsy spider"
+    sleep(0.1);
+    recv(sock2, text2, 1025, 0);
+    assert(strcmp(text2, "the itsy bitsy spider") == 0);
+    printf("TEST 5 DONE\n");
+    send(sock2, "POP", sizeof("POP"), 0); 
+    sleep(0.1);
+    send(sock1, "TOP", sizeof("TOP"), 0); //top should be "three smart fellows, they felt smart"
+    sleep(0.1);
+    recv(sock1, text1, 1025, 0);
+    assert(strcmp(text1, "three smart fellows, they felt smart") == 0);
+    printf("TEST 6 DONE\n");
+    send(sock1, "POP", sizeof("POP"), 0); 
+    sleep(0.1);
+    send(sock2, "TOP", sizeof("TOP"), 0); //top should be "she sells seashells by the sea shore"
+    sleep(0.1);
+    recv(sock2, text2, 1025, 0);
+    assert(strcmp(text2, "she sells seashells by the sea shore") == 0);
+    printf("TEST 7 DONE\n");
+    send(sock1, "EXIT", sizeof("EXIT"), 0);
+    sleep(0.1);
+    send(sock2, "EXIT", sizeof("EXIT"), 0);
+    close(sock1);
+
+    printf("DONE\n");
 
     return 0;
-
-
-    // char input[1030];
-    // char text[1025];
-    // while(1) {
-	// 	printf("INPUT: ");
-    //     fgets(input, 1030, stdin);
-	// 	input[strlen(input) - 1] = 0;
-	// 	if(strncmp(input, "EXIT", 4) == 0) {
-	// 		if(send(sock, "EXIT", sizeof("EXIT"), 0) < 0) {
-    //         	perror("ERROR: sending input");
-    //     	}
-	// 		break;
-	// 	}
-    //     if(send(sock, input, sizeof(input), 0) < 0) {
-    //         perror("ERROR: sending input");
-    //     }
-    //     else {
-    //         if(strncmp(input, "TOP", 3) == 0) {
-    //             if(recv(sock, text, 1025, 0) < 0) {
-    //                 perror("ERROR: recieving");
-    //             }
-    //             else {
-    //                 printf("OUTPUT: %s\n", text);
-    //             }
-    //         }
-    //     }
-    // }
-
 }
