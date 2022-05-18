@@ -1,9 +1,6 @@
 CXX = g++
 
-all: Server Client #Stack
-
-# Stack: stack.o
-# 	$(CXX) stack.o -o Stack
+all: Server Client Test
 
 Server: server.o alloc.o
 	$(CXX) server.o alloc.o -pthread -o Server
@@ -14,10 +11,7 @@ Client: client.o
 test: Test.o
 	$(CXX) Test.o -o Test
 
-# stack.o: stack.cpp
-# 	$(CXX) stack.cpp -c
-
-Test.o: Test.cpp doctest.h
+Test.o: Test.cpp
 	$(CXX) Test.cpp -c
 
 server.o: server.cpp alloc.hpp
@@ -30,4 +24,4 @@ client.o: client.cpp
 	$(CXX) client.cpp -c
 
 clean:
-	rm -f *.o Server Client
+	rm -f *.o Server Client Test

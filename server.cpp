@@ -124,9 +124,11 @@ void* client_thread(void* sock_fd) {
         if(recv(fd, msg, 1030, 0) < 0){
             printf("ERROR: on recieve");
         }
-        else{
+        else {
             if(strncmp(msg, "EXIT", 4) == 0) {
-                break;
+				printf("recieved EXIT!\n");
+                close(fd); // close the file descripter for this client
+				pthread_exit(NULL); // exit this thread
             }
             else if(strncmp(msg, "PUSH", 4) == 0){
 				pthread_mutex_lock(&lock);
@@ -155,8 +157,8 @@ void* client_thread(void* sock_fd) {
             }
         }
     }
-	close(fd); // close the file descripter for this client
-	pthread_exit(NULL); // exit this thread
+	// close(fd); // close the file descripter for this client
+	// pthread_exit(NULL); // exit this thread
 }
 
 int main(void)
